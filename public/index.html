@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>被动收入记录器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        neutral: '#1F2937',
+                        'neutral-light': '#F3F4F6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'custom': '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        'custom-hover': '0 8px 30px rgba(0, 0, 0, 0.12)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            }
+            /* 自定义模态框宽度 */
+            .custom-modal-width {
+                max-width: 600px;
+            }
+            /* 自定义截图区域样式 */
+            .screenshot-card {
+                @apply border border-gray-200 rounded-xl p-6 bg-gray-50 shadow-sm;
+            }
+            .screenshot-value {
+                @apply text-[clamp(2rem,5vw,3rem)] font-bold text-primary mb-2 text-shadow;
+            }
+            .screenshot-label {
+                @apply text-sm text-gray-500;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-money-bill-wave text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-neutral">收入记录器</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <!-- 配置区域 -->
+        <section id="config" class="max-w-md mx-auto bg-white rounded-xl shadow-custom p-6 transition-all-300 opacity-100 scale-100">
+            <h2 class="text-xl font-bold text-neutral mb-4">配置你的收入</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="salary" class="block text-sm font-medium text-gray-700 mb-1">月薪 (元)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fa-solid fa-rmb"></i>
+                        </span>
+                        <input type="number" id="salary" class="pl-10 block w-full rounded-lg border border-gray-300 py-2 px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all-300" placeholder="输入你的月薪" required>
+                    </div>
+                </div>
+                <div>
+                    <label for="days" class="block text-sm font-medium text-gray-700 mb-1">每月工作天数</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </span>
+                        <input type="number" id="days" class="pl-10 block w-full rounded-lg border border-gray-300 py-2 px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all-300" placeholder="输入每月工作天数" min="1" max="31" required>
+                    </div>
+                </div>
+                <button id="submitBtn" class="w-full bg-gradient-primary text-white py-3 px-4 rounded-lg font-medium hover:shadow-lg transform hover:-translate-y-0.5 transition-all-300 flex items-center justify-center">
+                    <i class="fa-solid fa-play-circle mr-2"></i>
+                    开始记录
+                </button>
+            </div>
+        </section>
+
+        <!-- 主显示区域 -->
+        <section id="main" class="max-w-4xl mx-auto hidden opacity-0 scale-95 transition-all-300">
+            <!-- 当前收入卡片 -->
+            <div class="bg-white rounded-xl shadow-custom p-6 mb-6 transform hover:shadow-custom-hover transition-all-300">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-neutral mb-2">当前收入</h2>
+                        <p class="text-gray-500 text-sm">从上班开始，每一分每一秒都在为你赚钱</p>
+                    </div>
+                    <div id="timeDisplay" class="mt-2 md:mt-0 text-sm text-gray-500">
+                        <i class="fa-solid fa-clock-o mr-1"></i>
+                        <span></span>
+                    </div>
+                </div>
+                <div class="mt-6 text-center">
+                    <div id="incomeDisplay" class="text-[clamp(2rem,8vw,4rem)] font-bold text-primary mb-2 text-shadow">
+                        <span id="currentIncome">0.00</span>
+                        <span class="text-[clamp(1rem,3vw,2rem)]">元</span>
+                    </div>
+                    <div class="flex justify-center space-x-4 mt-4">
+                        <div class="text-center">
+                            <div class="text-sm text-gray-500">时薪</div>
+                            <div id="hourlyRate" class="font-medium">0.00 元/小时</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-sm text-gray-500">每分钟</div>
+                            <div id="perMinute" class="font-medium">0.00 元/分钟</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-sm text-gray-500">每秒</div>
+                            <div id="perSecond" class="font-medium">0.00 元/秒</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-center space-x-4">
+                    <button id="pauseBtn" class="px-6 py-2.5 bg-gray-200 text-neutral rounded-lg font-medium hover:bg-gray-300 transition-all-300 flex items-center">
+                        <i class="fa-solid fa-pause mr-2"></i>
+                        <span>暂停</span>
+                    </button>
+                    <button id="resetBtn" class="px-6 py-2.5 bg-red-100 text-red-600 rounded-lg font-medium hover:bg-red-200 transition-all-300 flex items-center">
+                        <i class="fa-solid fa-refresh mr-2"></i>
+                        <span>重置数据</span>
+                    </button>
+                    <!-- 添加定时结束输入框和按钮 -->
+                    <div class="flex items-center space-x-2">
+                        <input type="time" id="endTimeInput" class="pl-2 block rounded-lg border border-gray-300 py-2 px-4 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all-300">
+                        <button id="setEndTimeBtn" class="px-6 py-2.5 bg-secondary text-white rounded-lg font-medium hover:bg-secondary/90 transition-all-300 flex items-center">
+                            <i class="fa-solid fa-clock mr-2"></i>
+                            定时结束
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white rounded-xl shadow-custom p-5 transform hover:shadow-custom-hover transition-all-300">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <h3 class="ml-3 font-medium text-neutral">今日工资</h3>
+                    </div>
+                    <div class="text-2xl font-bold text-neutral">
+                        <span id="todayIncome">0.00</span>
+                        <span class="text-sm font-normal text-gray-500">元</span>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-500">
+                        <span id="todayHours">0</span> 小时 <span id="todayMinutes">0</span> 分钟
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-custom p-5 transform hover:shadow-custom-hover transition-all-300">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-secondary">
+                            <i class="fa-solid fa-calendar-week"></i>
+                        </div>
+                        <h3 class="ml-3 font-medium text-neutral">本周工资</h3>
+                    </div>
+                    <div class="text-2xl font-bold text-neutral">
+                        <span id="weekIncome">0.00</span>
+                        <span class="text-sm font-normal text-gray-500">元</span>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-500">
+                        <span id="weekDays">0</span> 天
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-custom p-5 transform hover:shadow-custom-hover transition-all-300">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-accent">
+                            <i class="fa-solid fa-calendar"></i>
+                        </div>
+                        <h3 class="ml-3 font-medium text-neutral">本月工资</h3>
+                    </div>
+                    <div class="text-2xl font-bold text-neutral">
+                        <span id="monthIncome">0.00</span>
+                        <span class="text-sm font-normal text-gray-500">元</span>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-500">
+                        <span id="monthDays">0</span> 天
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录 -->
+            <div class="bg-white rounded-xl shadow-custom p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-neutral">历史记录</h2>
+                    <div class="flex space-x-2">
+                        <button id="refreshHistoryBtn" class="text-sm px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all-300 flex items-center">
+                            <i class="fa-solid fa-refresh mr-1"></i> 刷新
+                        </button>
+                        <button id="exportBtn" class="text-sm px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all-300 flex items-center">
+                            <i class="fa-solid fa-download mr-1"></i> 导出
+                        </button>
+                        <button id="shareBtn" class="text-sm px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all-300 flex items-center">
+                            <i class="fa-solid fa-image mr-1"></i> 下载截图
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">开始时间</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">结束时间</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时长</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">收入</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTable" class="bg-white divide-y divide-gray-200">
+                            <!-- 历史记录将通过 JavaScript 动态添加 -->
+                            <tr class="text-center">
+                                <td colspan="5" class="px-6 py-12 text-gray-500">暂无历史记录</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noHistory" class="hidden text-center py-8 text-gray-500">
+                    <i class="fa-solid fa-inbox mb-2 text-2xl"></i>
+                    <p>暂无工资记录，开始工作吧！</p>
+                </div>
+            </div>
+
+            <!-- 图表统计 -->
+            <div class="bg-white rounded-xl shadow-custom p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-neutral">收入统计</h2>
+                    <button id="refreshChartBtn" class="text-sm px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all-300 flex items-center">
+                        <i class="fa-solid fa-refresh mr-1"></i> 刷新
+                    </button>
+                </div>
+                <div class="h-64">
+                    <canvas id="incomeChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-6">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>© 2025 被动收入记录器 | 让每一秒的工作都变得有价值</p>
+        </div>
+    </footer>
+
+    <!-- 分享模态框 -->
+    <div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0 custom-modal-width" id="modalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-neutral">下载收入截图</h3>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <!-- 使用自定义截图卡片样式 -->
+                <div class="screenshot-card" id="screenshotArea">
+                    <div class="text-center">
+                        <div class="screenshot-value">
+                            <span id="shareIncome">0.00</span>
+                            <span class="text-[clamp(1rem,2vw,1.5rem)]">元</span>
+                        </div>
+                        <div class="screenshot-label">当前摸鱼收入</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button id="downloadBtn" class="w-full bg-primary text-white py-2 px-4 rounded-lg font-medium hover:bg-primary/90 transition-all-300 flex items-center justify-center">
+                    <i class="fa-solid fa-download mr-2"></i>
+                    下载截图
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script>
+        // 工具函数
+        function formatNumber(num) {
+            return num.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        }
+
+        function formatDateTime(d) {
+            return `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日 ${
+                [d.getHours(), d.getMinutes(), d.getSeconds()]
+                    .map(v => String(v).padStart(2, '0')).join(':')
+            }`;
+        }
+
+        function formatTime(d) {
+            return [d.getHours(), d.getMinutes(), d.getSeconds()]
+                .map(v => String(v).padStart(2, '0')).join(':');
+        }
+
+        function formatDuration(ms) {
+            const hours = Math.floor(ms / 3600000);
+            const minutes = Math.floor((ms % 3600000) / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            
+            if (hours > 0) {
+                return `${hours}小时${minutes}分钟${seconds}秒`;
+            } else if (minutes > 0) {
+                return `${minutes}分钟${seconds}秒`;
+            } else {
+                return `${seconds}秒`;
+            }
+        }
+
+        // DOM 元素
+        const configEl = document.getElementById('config');
+        const mainEl = document.getElementById('main');
+        const salaryInput = document.getElementById('salary');
+        const daysInput = document.getElementById('days');
+        const submitBtn = document.getElementById('submitBtn');
+        const incomeDisplay = document.getElementById('currentIncome');
+        const timeDisplay = document.getElementById('timeDisplay').querySelector('span');
+        const headerTime = document.getElementById('headerTime');
+        const hourlyRateEl = document.getElementById('hourlyRate');
+        const perMinuteEl = document.getElementById('perMinute');
+        const perSecondEl = document.getElementById('perSecond');
+        const todayIncomeEl = document.getElementById('todayIncome');
+        const todayHoursEl = document.getElementById('todayHours');
+        const todayMinutesEl = document.getElementById('todayMinutes');
+        const weekIncomeEl = document.getElementById('weekIncome');
+        const weekDaysEl = document.getElementById('weekDays');
+        const monthIncomeEl = document.getElementById('monthIncome');
+        const monthDaysEl = document.getElementById('monthDays');
+        const historyTable = document.getElementById('historyTable');
+        const noHistory = document.getElementById('noHistory');
+        const exportBtn = document.getElementById('exportBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const shareModal = document.getElementById('shareModal');
+        const modalContent = document.getElementById('modalContent');
+        const closeModal = document.getElementById('closeModal');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const shareIncomeEl = document.getElementById('shareIncome');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+        const refreshChartBtn = document.getElementById('refreshChartBtn');
+        const screenshotArea = document.getElementById('screenshotArea');
+        const endTimeInput = document.getElementById('endTimeInput');
+        const setEndTimeBtn = document.getElementById('setEndTimeBtn');
+        let endTimeTimeout = null;
+
+        // 全局变量
+        let perMs = 0;
+        let startTime = null;
+        let currentSessionStart = null;
+        let currentIncome = 0;
+        let incomeInterval = null;
+        let history = JSON.parse(localStorage.getItem('incomeHistory')) || [];
+        let isPaused = false;
+        let incomeChart = null; // 存储图表实例
+
+        // 更新顶部导航栏中的时间
+        function updateHeaderTime() {
+            const now = new Date();
+            headerTime.textContent = formatDateTime(now);
+        }
+
+        // 恢复数据
+        function restoreData() {
+            const savedConfig = JSON.parse(localStorage.getItem('incomeConfig'));
+            if (savedConfig) {
+                salaryInput.value = savedConfig.salary;
+                daysInput.value = savedConfig.days;
+
+                // 计算每毫秒收入
+                perMs = savedConfig.salary / (savedConfig.days * 8 * 60 * 60 * 1000);
+
+                // 更新时薪、每分钟、每秒收入
+                const hourlyRate = perMs * 3600000;
+                const perMinute = perMs * 60000;
+                const perSecond = perMs * 1000;
+
+                hourlyRateEl.textContent = `${formatNumber(hourlyRate)} 元/小时`;
+                perMinuteEl.textContent = `${formatNumber(perMinute)} 元/分钟`;
+                perSecondEl.textContent = `${formatNumber(perSecond)} 元/秒`;
+
+                // 隐藏配置区域，显示主界面
+                configEl.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    configEl.classList.add('hidden');
+                    mainEl.classList.remove('hidden');
+                    setTimeout(() => {
+                        mainEl.classList.remove('opacity-0', 'scale-95');
+                        const savedState = JSON.parse(localStorage.getItem('incomeState'));
+                        if (savedState) {
+                            startTime = new Date(savedState.startTime);
+                            currentSessionStart = new Date(savedState.currentSessionStart);
+                            currentIncome = savedState.currentIncome;
+                            isPaused = savedState.isPaused;
+
+                            if (isPaused) {
+                                pauseBtn.innerHTML = '<i class="fa-solid fa-play mr-2"></i><span>继续</span>';
+                                pauseBtn.classList.remove('bg-gray-200', 'text-neutral');
+                                pauseBtn.classList.add('bg-green-100', 'text-green-600');
+                            } else {
+                                startTracking();
+                            }
+                        } else {
+                            startTracking();
+                        }
+                        renderHistoryStats();
+                        initChart();
+                    }, 50);
+                }, 300);
+            }
+        }
+
+        // 提交配置
+        submitBtn.addEventListener('click', () => {
+            // 输入验证
+            const salary = parseFloat(salaryInput.value);
+            const days = parseInt(daysInput.value);
+
+            if (isNaN(salary) || salary <= 0) {
+                showError(salaryInput, '请输入有效的月薪金额');
+                return;
+            }
+
+            if (isNaN(days) || days <= 0 || days > 31) {
+                showError(daysInput, '每月工作天数必须在 1-31 之间');
+                return;
+            }
+
+            // 存储配置信息
+            localStorage.setItem('incomeConfig', JSON.stringify({ salary, days }));
+
+            // 计算每毫秒收入
+            perMs = salary / (days * 8 * 60 * 60 * 1000);
+
+            // 更新时薪、每分钟、每秒收入
+            const hourlyRate = perMs * 3600000;
+            const perMinute = perMs * 60000;
+            const perSecond = perMs * 1000;
+
+            hourlyRateEl.textContent = `${formatNumber(hourlyRate)} 元/小时`;
+            perMinuteEl.textContent = `${formatNumber(perMinute)} 元/分钟`;
+            perSecondEl.textContent = `${formatNumber(perSecond)} 元/秒`;
+
+            // 隐藏配置区域，显示主界面
+            configEl.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                configEl.classList.add('hidden');
+                mainEl.classList.remove('hidden');
+                setTimeout(() => {
+                    mainEl.classList.remove('opacity-0', 'scale-95');
+                    startTracking();
+                    renderHistoryStats();
+                    initChart();
+                }, 50);
+            }, 300);
+        });
+
+        // 显示错误提示
+        function showError(input, message) {
+            const errorElement = document.createElement('div');
+            errorElement.className = 'text-red-500 text-xs mt-1';
+            errorElement.textContent = message;
+            
+            input.classList.add('border-red-500');
+            input.parentNode.appendChild(errorElement);
+            
+            setTimeout(() => {
+                if (input.classList.contains('border-red-500')) {
+                    input.classList.remove('border-red-500');
+                }
+                if (errorElement.parentNode) {
+                    errorElement.remove();
+                }
+            }, 3000);
+        }
+
+        // 开始跟踪收入
+        function startTracking() {
+            startTime = new Date();
+            currentSessionStart = new Date();
+            isPaused = false;
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause mr-2"></i><span>暂停</span>';
+            
+            // 更新当前时间显示
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            // 更新顶部导航栏时间
+            updateHeaderTime();
+            setInterval(updateHeaderTime, 1000);
+            
+            // 更新收入显示
+            updateIncome();
+            incomeInterval = setInterval(updateIncome, 100);
+        }
+
+        // 暂停/继续跟踪
+        pauseBtn.addEventListener('click', () => {
+            if (isPaused) {
+                // 继续跟踪
+                const now = new Date();
+                const pauseDuration = now - currentSessionStart;
+                startTime = new Date(startTime.getTime() + pauseDuration);
+                currentSessionStart = now;
+                isPaused = false;
+                pauseBtn.innerHTML = '<i class="fa-solid fa-pause mr-2"></i><span>暂停</span>';
+                pauseBtn.classList.remove('bg-green-100', 'text-green-600');
+                pauseBtn.classList.add('bg-gray-200', 'text-neutral');
+                
+                // 重新启动收入更新
+                incomeInterval = setInterval(updateIncome, 100);
+            } else {
+                // 暂停跟踪
+                const endTime = new Date();
+                const sessionIncome = (endTime - currentSessionStart) * perMs;
+                currentIncome += sessionIncome;
+                
+                // 添加到历史记录
+                history.push({
+                    startTime: currentSessionStart.toISOString(),
+                    endTime: endTime.toISOString(),
+                    income: sessionIncome
+                });
+                
+                // 保存到本地存储
+                localStorage.setItem('incomeHistory', JSON.stringify(history));
+                localStorage.setItem('incomeState', JSON.stringify({
+                    startTime: startTime.toISOString(),
+                    currentSessionStart: currentSessionStart.toISOString(),
+                    currentIncome,
+                    isPaused: true
+                }));
+                
+                isPaused = true;
+                pauseBtn.innerHTML = '<i class="fa-solid fa-play mr-2"></i><span>继续</span>';
+                pauseBtn.classList.remove('bg-gray-200', 'text-neutral');
+                pauseBtn.classList.add('bg-green-100', 'text-green-600');
+                
+                // 停止收入更新
+                clearInterval(incomeInterval);
+                
+                // 更新历史记录显示和统计信息
+                renderHistoryStats();
+                updateStats();
+            }
+        });
+
+        // 重置所有数据
+        resetBtn.addEventListener('click', () => {
+            if (confirm('确定要重置所有数据吗？这将清除所有历史记录和当前收入。')) {
+                // 停止跟踪
+                clearInterval(incomeInterval);
+                clearTimeout(endTimeTimeout);
+                
+                // 重置变量
+                perMs = 0;
+                startTime = null;
+                currentSessionStart = null;
+                currentIncome = 0;
+                history = [];
+                
+                // 清除本地存储
+                localStorage.removeItem('incomeConfig');
+                localStorage.removeItem('incomeHistory');
+                localStorage.removeItem('incomeState');
+                
+                // 重置UI
+                incomeDisplay.textContent = '0.00';
+                renderHistoryStats();
+                initChart();
+                updateStats();
+                
+                // 直接跳转到配置界面
+                mainEl.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    mainEl.classList.add('hidden');
+                    configEl.classList.remove('hidden');
+                    setTimeout(() => {
+                        configEl.classList.remove('opacity-0', 'scale-95');
+                        salaryInput.value = '';
+                        daysInput.value = '';
+                    }, 50);
+                }, 300);
+            }
+        });
+
+        // 更新当前时间
+        function updateCurrentTime() {
+            const now = new Date();
+            timeDisplay.textContent = formatDateTime(now);
+        }
+
+        // 更新收入
+        function updateIncome() {
+            if (isPaused) return;
+            
+            const now = new Date();
+            const elapsedMs = now - startTime;
+            currentIncome = elapsedMs * perMs;
+            
+            // 格式化并显示收入
+            incomeDisplay.textContent = formatNumber(currentIncome);
+            
+            // 更新统计信息
+            updateStats();
+            
+            // 存储当前状态
+            localStorage.setItem('incomeState', JSON.stringify({
+                startTime: startTime.toISOString(),
+                currentSessionStart: currentSessionStart.toISOString(),
+                currentIncome,
+                isPaused
+            }));
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            // 过滤今天的记录
+            const todayRecords = history.filter(record => {
+                const recordDate = new Date(record.startTime);
+                return recordDate.toDateString() === today.toDateString();
+            });
+            
+            // 计算今天的收入
+            let todayIncome = currentIncome;
+            todayRecords.forEach(record => {
+                todayIncome += record.income;
+            });
+            
+            // 计算今天的时长
+            const todayElapsedMs = now - startTime;
+            let todayTotalMs = todayElapsedMs;
+            todayRecords.forEach(record => {
+                todayTotalMs += new Date(record.endTime) - new Date(record.startTime);
+            });
+            
+            const todayHours = Math.floor(todayTotalMs / 3600000);
+            const todayMinutes = Math.floor((todayTotalMs % 3600000) / 60000);
+            
+            // 过滤本周的记录
+            const weekRecords = history.filter(record => {
+                const recordDate = new Date(record.startTime);
+                return recordDate >= weekStart;
+            });
+            
+            // 计算本周的收入
+            let weekIncome = currentIncome;
+            weekRecords.forEach(record => {
+                weekIncome += record.income;
+            });
+            
+            // 计算本周的天数
+            const weekDays = [...new Set(weekRecords.map(record => 
+                new Date(record.startTime).toDateString()
+            ))].length;
+            
+            // 过滤本月的记录
+            const monthRecords = history.filter(record => {
+                const recordDate = new Date(record.startTime);
+                return recordDate >= monthStart;
+            });
+            
+            // 计算本月的收入
+            let monthIncome = currentIncome;
+            monthRecords.forEach(record => {
+                monthIncome += record.income;
+            });
+            
+            // 计算本月的天数
+            const monthDays = [...new Set(monthRecords.map(record => 
+                new Date(record.startTime).toDateString()
+            ))].length;
+            
+            // 更新显示
+            todayIncomeEl.textContent = formatNumber(todayIncome);
+            todayHoursEl.textContent = todayHours;
+            todayMinutesEl.textContent = todayMinutes;
+            weekIncomeEl.textContent = formatNumber(weekIncome);
+            weekDaysEl.textContent = weekDays;
+            monthIncomeEl.textContent = formatNumber(monthIncome);
+            monthDaysEl.textContent = monthDays;
+            
+            // 更新分享模态框中的收入
+            shareIncomeEl.textContent = formatNumber(todayIncome);
+        }
+
+        // 渲染历史记录和统计信息
+        function renderHistoryStats() {
+            // 清空表格
+            historyTable.innerHTML = '';
+            
+            if (history.length === 0) {
+                const row = document.createElement('tr');
+                row.className = 'text-center';
+                row.innerHTML = `<td colspan="5" class="px-6 py-12 text-gray-500">暂无历史记录</td>`;
+                historyTable.appendChild(row);
+                noHistory.classList.remove('hidden');
+            } else {
+                noHistory.classList.add('hidden');
+                
+                // 按日期降序排列
+                const sortedHistory = [...history].sort((a, b) => 
+                    new Date(b.startTime) - new Date(a.startTime)
+                );
+                
+                sortedHistory.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 transition-all-300';
+                    
+                    const startDate = new Date(record.startTime);
+                    const endDate = new Date(record.endTime);
+                    const durationMs = endDate - startDate;
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${formatTime(startDate)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${formatTime(endDate)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${formatDuration(durationMs)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-primary">
+                            ${formatNumber(record.income)} 元
+                        </td>
+                    `;
+                    
+                    historyTable.appendChild(row);
+                });
+            }
+        }
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('incomeChart').getContext('2d');
+            
+            // 如果图表已存在，销毁它
+            if (incomeChart) {
+                incomeChart.destroy();
+            }
+            
+            const today = new Date();
+            const labels = [];
+            const data = [];
+            
+            // 获取过去7天的日期和收入
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                labels.push(`${date.getMonth() + 1}/${date.getDate()}`);
+                
+                // 计算当天的收入
+                const dayRecords = history.filter(record => {
+                    const recordDate = new Date(record.startTime);
+                    return recordDate.toDateString() === date.toDateString();
+                });
+                
+                let dayIncome = 0;
+                dayRecords.forEach(record => {
+                    dayIncome += record.income;
+                });
+                
+                // 如果是今天，加上当前会话的收入
+                if (date.toDateString() === today.toDateString() && !isPaused) {
+                    dayIncome += currentIncome;
+                }
+                
+                data.push(dayIncome);
+            }
+            
+            // 创建图表
+            incomeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '每日摸鱼收入 (元)',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            bodyFont: {
+                                size: 14
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `收入: ${formatNumber(context.raw)} 元`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // 导出历史记录
+        exportBtn.addEventListener('click', () => {
+            if (history.length === 0) {
+                alert('暂无历史记录可导出');
+                return;
+            }
+            
+            // 创建CSV内容
+            let csvContent = "日期,开始时间,结束时间,时长,收入\n";
+            
+            history.forEach(record => {
+                const startDate = new Date(record.startTime);
+                const endDate = new Date(record.endTime);
+                const durationMs = endDate - startDate;
+                
+                csvContent += `${startDate.toLocaleDateString()},`;
+                csvContent += `${formatTime(startDate)},`;
+                csvContent += `${formatTime(endDate)},`;
+                csvContent += `${formatDuration(durationMs)},`;
+                csvContent += `${formatNumber(record.income)}元\n`;
+            });
+            
+            // 创建Blob并下载
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'income_history.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // 下载截图
+        shareBtn.addEventListener('click', () => {
+            // 显示模态框
+            shareModal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+            }, 50);
+
+            // 更新截图区域内容
+            const currentIncomeValue = incomeDisplay.textContent;
+            const todayIncomeValue = todayIncomeEl.textContent;
+            const weekIncomeValue = weekIncomeEl.textContent;
+            const monthIncomeValue = monthIncomeEl.textContent;
+
+            screenshotArea.innerHTML = `
+                <div class="text-center">
+                    <div class="screenshot-value">
+                        <span>${currentIncomeValue}</span>
+                        <span class="text-[clamp(1rem,2vw,1.5rem)]">元</span>
+                    </div>
+                    <div class="screenshot-label">当前摸鱼收入</div>
+                </div>
+                <div class="text-center mt-4">
+                    <div class="screenshot-value">
+                        <span>${todayIncomeValue}</span>
+                        <span class="text-[clamp(1rem,2vw,1.5rem)]">元</span>
+                    </div>
+                    <div class="screenshot-label">今日摸鱼收入</div>
+                </div>
+                <div class="text-center mt-4">
+                    <div class="screenshot-value">
+                        <span>${weekIncomeValue}</span>
+                        <span class="text-[clamp(1rem,2vw,1.5rem)]">元</span>
+                    </div>
+                    <div class="screenshot-label">本周摸鱼收入</div>
+                </div>
+                <div class="text-center mt-4">
+                    <div class="screenshot-value">
+                        <span>${monthIncomeValue}</span>
+                        <span class="text-[clamp(1rem,2vw,1.5rem)]">元</span>
+                    </div>
+                    <div class="screenshot-label">本月摸鱼收入</div>
+                </div>
+            `;
+        });
+
+        closeModal.addEventListener('click', () => {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                shareModal.classList.add('hidden');
+            }, 300);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            html2canvas(screenshotArea).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = 'income_screenshot.png';
+                link.click();
+            });
+        });
+
+        // 刷新历史记录
+        refreshHistoryBtn.addEventListener('click', () => {
+            renderHistoryStats();
+        });
+
+        // 刷新图表
+        refreshChartBtn.addEventListener('click', () => {
+            initChart();
+        });
+
+        // 定时结束功能
+        setEndTimeBtn.addEventListener('click', () => {
+            const endTimeStr = endTimeInput.value;
+            if (!endTimeStr) {
+                alert('请选择一个结束时间');
+                return;
+            }
+
+            const now = new Date();
+            const [hours, minutes] = endTimeStr.split(':').map(Number);
+            const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+            if (endTime < now) {
+                // 如果结束时间已经过去，将日期加一天
+                endTime.setDate(endTime.getDate() + 1);
+            }
+
+            const delay = endTime - now;
+
+            clearTimeout(endTimeTimeout);
+            endTimeTimeout = setTimeout(() => {
+                if (!isPaused) {
+                    pauseBtn.click();
+                }
+            }, delay);
+
+            alert(`已设置定时结束时间为 ${formatTime(endTime)}`);
+        });
+
+        // 在页面即将关闭或刷新时保存数据
+        window.addEventListener('beforeunload', (event) => {
+            // 保存当前状态
+            if (startTime && currentSessionStart) {
+                localStorage.setItem('incomeState', JSON.stringify({
+                    startTime: startTime.toISOString(),
+                    currentSessionStart: currentSessionStart.toISOString(),
+                    currentIncome,
+                    isPaused
+                }));
+            }
+            
+            // 取消事件（标准写法）
+            event.preventDefault();
+            // Chrome需要设置returnValue
+            event.returnValue = '';
+        });
+
+        // 在页面加载时恢复数据
+        window.addEventListener('load', restoreData);
+    </script>
+</body>
+<script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+  
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8yPjEGepWuIrmE0Pmmx8qOgAOP2Tbrgc",
+      authDomain: "moyu-f60ab.firebaseapp.com",
+      projectId: "moyu-f60ab",
+      storageBucket: "moyu-f60ab.firebasestorage.app",
+      messagingSenderId: "135389394858",
+      appId: "1:135389394858:web:8c274a65b1a761d0231dd3",
+      measurementId: "G-KSS364L888"
+    };
+  
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+  </script>
+</html>
+    
